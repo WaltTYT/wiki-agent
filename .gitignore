@@ -1,6 +1,7 @@
 # 语料与论文 PDF：体积大且版权敏感，不入库（示例语料用 sample-handbook.md，本地文件保留）
 data/pdfs/*.pdf
 .doc/*.pdf
+.doc/example/
 
 # 本机排查脚本（写死了本机路径与密钥文件位置，不提交）
 backend/scripts/_local/
