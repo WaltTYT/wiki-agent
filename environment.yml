@@ -1,0 +1,8 @@
+name: langchain1.2
+channels:
+  - conda-forge
+dependencies:
+  - python=3.13
+  - pip
+  - pip:
+    - -r backend/requirements.txt

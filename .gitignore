@@ -1,0 +1,36 @@
+# 语料与论文 PDF：体积大且版权敏感，不入库（示例语料用 sample-handbook.md，本地文件保留）
+data/pdfs/*.pdf
+.doc/*.pdf
+
+# 本机排查脚本（写死了本机路径与密钥文件位置，不提交）
+backend/scripts/_local/
+
+# 依赖与环境
+node_modules/
+dist/
+.conda-env/
+
+# 配置与密钥
+.env
+backend/.env
+
+# 向量库与生成物（语料 PDF 建议提交，chroma 不提交）
+data/chroma/
+data/wiki/*.tmp
+backend/.chroma_check/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# 编辑器 / 系统
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+Thumbs.db
+.DS_Store

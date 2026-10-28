@@ -1,0 +1,71 @@
+<script setup>
+import { computed } from 'vue'
+import { renderMarkdown } from '../utils/markdown.js'
+
+const props = defineProps({
+  msg: { type: Object, required: true }, // { role, text, sources, error, streaming }
+})
+
+const html = computed(() => renderMarkdown(props.msg.text))
+const isUser = computed(() => props.msg.role === 'user')
+</script>
+
+<template>
+  <div class="row" :class="isUser ? 'right' : 'left'">
+    <div class="bubble" :class="{ 'is-user': isUser, 'has-error': !!msg.error }">
+      <div v-if="!isUser && msg.text" class="answer" v-html="html" />
+      <div v-else-if="!isUser" class="answer placeholder">…</div>
+      <template v-else>{{ msg.text }}</template>
+      <span v-if="msg.streaming" class="caret" />
+
+      <div v-if="!isUser && msg.sources && msg.sources.length" class="sources">
+        <span class="sources-label">参考来源</span>
+        <span v-for="(s, i) in msg.sources" :key="i" class="chip">
+          {{ s.source }}<template v-if="s.page">·第{{ s.page }}页</template>
+          <em v-if="typeof s.score === 'number'">{{ s.score.toFixed(2) }}</em>
+        </span>
+      </div>
+      <div v-if="!isUser && msg.model" class="meta">{{ msg.model }}</div>
+      <div v-if="msg.error" class="err">⚠ {{ msg.error }}</div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.row { display: flex; margin: 10px 0; }
+.row.right { justify-content: flex-end; }
+.bubble {
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: #f4f5f7;
+  line-height: 1.7;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+.bubble.is-user { background: #2f6feb; color: #fff; }
+.bubble.has-error { border: 1px solid #f0b4b4; background: #fdf2f2; }
+.answer { white-space: normal; }
+.placeholder { color: #9aa0a6; }
+:deep(pre.code) {
+  background: #1f2328; color: #e6edf3; padding: 10px 12px; border-radius: 8px;
+  overflow-x: auto; white-space: pre; margin: 8px 0; font-size: 13px;
+}
+:deep(code) { background: rgba(0, 0, 0, 0.06); padding: 1px 5px; border-radius: 4px; }
+:deep(ul) { margin: 6px 0; padding-left: 22px; }
+:deep(a) { color: #2f6feb; }
+.caret {
+  display: inline-block; width: 7px; height: 1.05em; margin-left: 2px;
+  background: #2f6feb; vertical-align: -2px; animation: blink 1s steps(2, start) infinite;
+}
+@keyframes blink { to { visibility: hidden; } }
+.sources { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #d7dadf; font-size: 12px; }
+.sources-label { color: #8b9199; margin-right: 6px; }
+.chip {
+  display: inline-block; background: #fff; border: 1px solid #e1e4e8; border-radius: 999px;
+  padding: 1px 8px; margin: 2px 4px 2px 0; color: #444;
+}
+.chip em { font-style: normal; color: #9aa0a6; margin-left: 4px; }
+.err { margin-top: 6px; color: #c0392b; font-size: 13px; }
+.meta { margin-top: 6px; font-size: 11px; color: #9aa0a6; text-align: right; }
+</style>
