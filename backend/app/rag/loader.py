@@ -56,6 +56,17 @@ def _tag(splitter: RecursiveCharacterTextSplitter, docs: list[Document], src: Pa
     return split
 
 
+def list_corpus_files(root: Path, kinds: tuple[str, ...] = ("pdf", "text")) -> list[Path]:
+    """列出语料目录里要入库的文件（PDF 在前、文本在后，顺序稳定）。"""
+    root = Path(root)
+    files: list[Path] = []
+    if "pdf" in kinds:
+        files += sorted(root.glob("*.pdf"))
+    if "text" in kinds and root.exists():
+        files += sorted(p for p in root.iterdir() if p.suffix.lower() in TEXT_SUFFIXES)
+    return files
+
+
 def load_dir(
     root: Path,
     chunk_size: int = 800,
@@ -63,12 +74,7 @@ def load_dir(
     kinds: tuple[str, ...] = ("pdf", "text"),
 ) -> list[Document]:
     """加载目录下的 PDF / 文本语料。kinds 控制要读哪几类。"""
-    root = Path(root)
-    files: list[Path] = []
-    if "pdf" in kinds:
-        files += sorted(root.glob("*.pdf"))
-    if "text" in kinds:
-        files += sorted(p for p in root.iterdir() if p.suffix.lower() in TEXT_SUFFIXES) if root.exists() else []
+    files = list_corpus_files(root, kinds)
     if not files:
         return []
     splitter = make_splitter(chunk_size, chunk_overlap)

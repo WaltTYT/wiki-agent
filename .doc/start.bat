@@ -5,9 +5,9 @@ title wiki-agent
 rem ============================================================
 rem  wiki-agent V1.0 launcher  (double-click to run)
 rem
-rem  start.bat          backend only, open http://127.0.0.1:8000
+rem  start.bat          backend only, auto-reindex if corpus changed, open http://127.0.0.1:8000
 rem  start.bat dev      backend + vite dev server, open http://localhost:5173
-rem  start.bat ingest   rebuild the vector store first, then start
+rem  start.bat ingest   force a full rebuild of the vector store first, then start
 rem  start.bat check    environment self-check only, do not start servers
 rem
 rem  Stop: press Ctrl+C in this window.
@@ -72,6 +72,19 @@ if /I "%~1"=="ingest" (
     if not "!RC!"=="0" (
         echo   [X] ingest failed, aborted.
         goto :fail
+    )
+)
+
+if /I not "%~1"=="ingest" (
+    echo.
+    echo [wiki-agent] checking corpus for new/changed files...
+    pushd "%BACKEND%"
+    "%PY%" -m app.rag.ingest --kinds pdf,text --if-changed
+    set "RC=!ERRORLEVEL!"
+    popd
+    if not "!RC!"=="0" (
+        echo   [!] corpus check failed - starting with the existing index
+        echo       run "start.bat ingest" to rebuild manually
     )
 )
 

@@ -467,5 +467,5 @@ glm-4.5-flash   首token  5.87s   总  6.01s   8字  发票原件与行程单
 3. ✔ 本地资料放 `data/pdfs/`，整目录排除；可分发示例放 `data/pdfs-example/`，使用方法见该目录 README。
 4. ✔ `.doc/example/`、真实密钥、向量库、本机诊断脚本和构建产物均不提交。
 5. 试用现有版本：`.doc\start.bat` 访问 `http://127.0.0.1:8000`；开发前端用 `.doc\start.bat dev` 访问 `http://localhost:5173`。
-6. 新增或更新本地语料后，运行 `.doc\start.bat ingest` 重建索引；该操作会调用配置的 Embedding API。
+6. 新增或更新本地语料后无需手动操作：`.doc\start.bat` 启动前会用语料指纹（文件名/大小/mtime/切分参数）比对 `data/chroma/corpus_stamp.json`，有变化才重建索引（会调用 Embedding API）；`.doc\start.bat ingest` 可强制全量重建。
 7. 后续按 §4 实现 V3 Wiki 记忆闭环与开源文档；沿用 conda 与脚本启动，不依赖 Docker。
