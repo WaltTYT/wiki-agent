@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import logoUrl from '../assets/fount-logo.png'
 
 const props = defineProps({
   sessions: { type: Array, required: true }, // 已保存的会话，按 updatedAt 倒序
@@ -28,10 +29,10 @@ const groups = computed(() => {
 <template>
   <aside class="sidebar">
     <div class="side-brand">
-      <div class="logo">W</div>
+      <img class="logo" :src="logoUrl" alt="Fount" />
       <div class="titles">
-        <b>wiki-agent</b>
-        <span>知识库问答</span>
+        <b>Fount</b>
+        <span>知源 · 知识库问答</span>
       </div>
     </div>
 
@@ -73,10 +74,7 @@ const groups = computed(() => {
   padding: 14px 10px 10px; background: #f7f8fa; border-right: 1px solid #ececf0;
 }
 .side-brand { display: flex; align-items: center; gap: 9px; padding: 2px 6px 14px; }
-.logo {
-  width: 30px; height: 30px; border-radius: 9px; background: #2f6feb; color: #fff;
-  display: grid; place-items: center; font-weight: 700; font-size: 14px;
-}
+.logo { width: 34px; height: 34px; flex-shrink: 0; object-fit: contain; display: block; }
 .titles { display: flex; flex-direction: column; line-height: 1.25; }
 .titles b { font-size: 14px; }
 .titles span { font-size: 11px; color: #9aa0a6; }

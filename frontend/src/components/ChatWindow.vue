@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import ChatSidebar from './ChatSidebar.vue'
 import MessageBubble from './MessageBubble.vue'
+import logoUrl from '../assets/fount-logo.png'
 import { streamChat } from '../utils/sse.js'
 
 const MODEL_KEY = 'wiki-agent.model'
@@ -23,12 +24,6 @@ const pickerOpen = ref(false)
 const pickerEl = ref(null)
 
 let controller = null
-
-const SUGGESTIONS = [
-  '员工年假有几天？',
-  '差旅报销需要什么材料？',
-  '后端是怎么实现打字机效果的？',
-]
 
 const ordered = computed(() => [...sessions.value].sort((a, b) => b.updatedAt - a.updatedAt))
 const activeId = computed(() => current.value.id)
@@ -225,12 +220,9 @@ onBeforeUnmount(() => {
       <main ref="listEl" class="thread-scroll">
         <div class="thread">
           <div v-if="!current.messages.length" class="empty">
-            <div class="empty-logo">W</div>
+            <img class="empty-logo" :src="logoUrl" alt="Fount" />
             <h2>你好，有什么我能帮你的吗？</h2>
             <p>答案只来自已入库的文档，检索不到会直说，不会编。</p>
-            <div class="sugs">
-              <button v-for="s in SUGGESTIONS" :key="s" @click="ask(s)">{{ s }}</button>
-            </div>
           </div>
           <MessageBubble v-for="(m, i) in current.messages" :key="i" :msg="m" />
         </div>
@@ -243,7 +235,7 @@ onBeforeUnmount(() => {
             v-model="input"
             :disabled="busy"
             rows="2"
-            placeholder="给 wiki-agent 发送消息"
+            placeholder="给 Fount 发送消息"
             @keydown.enter.exact.prevent="ask()"
           />
 
@@ -338,18 +330,10 @@ onBeforeUnmount(() => {
 
 .empty { text-align: center; color: #6b7280; margin-top: 16vh; }
 .empty-logo {
-  width: 46px; height: 46px; margin: 0 auto 14px; border-radius: 14px;
-  background: #2f6feb; color: #fff; display: grid; place-items: center;
-  font-size: 21px; font-weight: 700;
+  display: block; width: 72px; height: 72px; margin: 0 auto 12px; object-fit: contain;
 }
 .empty h2 { color: #1f2328; font-size: 20px; margin: 0 0 8px; }
 .empty p { margin: 0; font-size: 13.5px; }
-.sugs { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
-.sugs button {
-  background: #f4f5f7; border: 1px solid #e1e4e8; color: #333;
-  font-size: 13px; padding: 8px 14px; border-radius: 999px; cursor: pointer;
-}
-.sugs button:hover { border-color: #2f6feb; color: #2f6feb; }
 
 .composer-wrap { padding: 10px 20px 20px; }
 .composer {
