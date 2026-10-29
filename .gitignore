@@ -1,5 +1,5 @@
-# 语料与论文 PDF：体积大且版权敏感，不入库（示例语料用 sample-handbook.md，本地文件保留）
-data/pdfs/*.pdf
+# 本地语料整目录不提交；可公开的虚构示例放在 data/pdfs-example/
+data/pdfs/
 .doc/*.pdf
 .doc/example/
 
@@ -15,7 +15,7 @@ dist/
 .env
 backend/.env
 
-# 向量库与生成物（语料 PDF 建议提交，chroma 不提交）
+# 向量库与生成物
 data/chroma/
 data/wiki/*.tmp
 backend/.chroma_check/

@@ -16,7 +16,7 @@
 | Node / npm | 就绪 v24.12.0 / 11.6.2 | 前端 Vite + Vue3，不走 conda |
 | Git | 就绪 2.54 | 每个版本里程碑打 tag：v0.1 / v0.2 / v1.0 |
 | Docker | 缺失（不影响主线） | 按决策 5：本机不装 Docker，V3 用脚本一键启动；compose/Dockerfile 仅作可选交付物（CI 或以后验证） |
-| LLM API | 待确认 | 统一走 OpenAI 兼容协议（base_url + api_key 可切换 DeepSeek / DashScope / Moonshot / OpenAI），换厂商只改 .env，不改代码 |
+| LLM API | 已接入千问 AI 平台与智谱 GLM | 统一走 OpenAI 兼容协议，多 Provider 配置位于未提交的 `backend/.env`；公开模板见 `.env.example` |
 
 关键决策（先定死，避免返工）
 
@@ -34,6 +34,15 @@
 8. **Docker 可选**：本机不装 Docker 也能完成 V3——日常开发用 conda env + uvicorn + Vite dev server；「一键拉起」用脚本实现（start-dev.ps1）；docker-compose.yml 与两个 Dockerfile 照写，作为开源仓库可选交付物，验证推迟到 GitHub Actions CI（ubuntu runner 自带 docker）。
 
 ---
+
+### 0.1 当前交付状态（2026-10-29 核对）
+
+- V1 与 V2 已有提交历史；GitHub `main` 与 `v0.2` 标签均已确认存在。V3 Wiki 记忆仍为后续计划，下方早期记录不代表当前阻塞。
+- `data/pdfs/` 是本地语料目录，整个目录不提交；公开虚构示例与使用说明放在 `data/pdfs-example/`。首次使用先复制示例到本地语料目录，再入库。
+- `.doc/example/`、`backend/.env`、`data/chroma/`、本机诊断脚本与依赖/构建目录继续排除。本次仅从 Git 索引移除旧示例路径，保留本地文件与现有索引。
+- Windows 脚本换行由 `.gitattributes` 约定：BAT/PowerShell 使用 CRLF，Markdown 使用 LF。
+- 本次打包验证：conda `langchain1.2` 中 `python -m pytest tests -q` 为 **48 passed / 3 warnings**；前端 `npm run build` 成功。未调用真实模型或重建现有索引。
+- Codex 重启后的诊断：普通执行通道仍报 `helper_unknown_error: setup refresh had errors`；沙箱外的 `pwsh` 可成功执行。问题已定位到 Windows 沙箱初始化环节，具体根因尚未确认；这不要求修改项目或重建 conda 环境。
 
 ## 1. 目录结构总目标
 
@@ -72,7 +81,8 @@ wiki-agent/
 │   └── nginx.conf               # 生产环境反代 /api
 ├── scripts/                     # V3: start-dev / ingest / test（conda 版一键脚本，无 Docker 主路径）
 ├── data/
-│   ├── pdfs/                    # 语料 PDF
+│   ├── pdfs/                    # 本地 PDF/MD/TXT 语料（整目录 gitignore）
+│   ├── pdfs-example/            # 可公开的虚构手册与 README，复制到 pdfs/ 后使用
 │   ├── chroma/                  # 向量库持久化（gitignore）
 │   └── wiki/                    # V3: 知识沉淀条目（一篇一 md + 索引）
 ├── docs/
@@ -291,14 +301,14 @@ max 更详尽且主动用 Markdown 强调；flash 更短平。离线测试增至
 ### 2.2 前端（Vue3 + Vite）
 
 - [x] 前端脚手架已完成（2026-10-28）：Vue 3.5.44 + Vite 8.3.5，**JS 版模板**（main.js / vite.config.js，无 TS）→ 后续一律写 .js，别照抄 TS 教程的泛型签名
-- [x] **零新增依赖**：`utils/markdown.js` 先整体转义 HTML 再做少量替换（无 XSS 面），省掉 markdown-it + dompurify，clone 下来不 `npm i` 也能跑
+- [x] **零新增 Markdown 依赖**：`utils/markdown.js` 先整体转义 HTML 再做少量替换，省掉 markdown-it + dompurify；clone 后仍需在 `frontend/` 执行 `npm ci` 安装 Vue/Vite 等项目依赖
 - [x] utils/sse.js：fetch + getReader + TextDecoder，buffer 只在遇到空行才切帧（半帧缓存已处理），末尾残留也兜底解析
 - [x] ChatWindow.vue + MessageBubble.vue：sources 先到即渲染来源 chip（含分数），token 逐个追加 + 光标闪烁；空态给 3 个示例问题
 - [x] MessageBubble.vue：Markdown 渲染（自研零依赖版，支持代码块/行内码/加粗/列表/链接），来源 chip 含分数
 - [x] 停止生成已实现（AbortController，AbortError 转成「已停止生成」提示）
 - [x] vite.config.js 已加 server.proxy：把 '/api' 转 http://127.0.0.1:8000，前端只请求相对路径（省掉生产环境 CORS）
 
-里程碑：提交并打 tag v0.1，README 写清「conda 激活 + 两条启动命令」。
+里程碑：V1 已合入 `main`；当前远端标签为 `v0.2`，未额外补打 `v0.1`。启动方式见 `.doc/start.bat`，示例使用方式见 `data/pdfs-example/README.md`。
 
 ---
 
@@ -333,7 +343,7 @@ START → Retrieve → Grade ──相关──→ Generate → END
 - [x] pytest：mock LLM 打分，断言三种路由（直接生成 / 重写后生成 / 超限兜底）
 - [x] docs/architecture.md 用 Mermaid 画出上面的图（实际落在 `.doc/architecture.md`，与 plan.md 同目录）
 
-里程碑：tag v0.2（待用户检查后提交）。
+里程碑：`v0.2` 已发布至远端（2026-10-29 核对），V2 实现与验收记录见下节。
 
 ### 3.3 V2.0 实现与实测记录（2026-10-29）
 
@@ -442,8 +452,8 @@ glm-4.5-flash   首token  5.87s   总  6.01s   8字  发票原件与行程单
 | 阶段 | 内容 | 预估 |
 |---|---|---|
 | W0 | **已完成（2026-10-28）**：修 ACL ✔ / 补齐依赖 ✔ / requirements.txt ✔ / Chroma 冒烟 ✔；剩 1 项：embedding 选型（决策 5a） | 0.5 天 |
-| W1 | **V1.0 已完成并通过真实端到端验收（2026-10-28）**，见 §1.7；待你玩过后打 tag v0.1 | 5 天 |
-| W2 | V2.0 LangGraph 重构 + Grade/Rewrite 闭环 + 测试 → tag v0.2 | 4–5 天 |
+| W1 | **V1.0 已完成并通过真实端到端验收（2026-10-28）**，见 §1.7；代码已合入 `main` | 5 天 |
+| W2 | **V2.0 已完成**：LangGraph + Grade/Rewrite + 测试；远端已有 `v0.2` | 4–5 天 |
 | W3 | V3.0 Wiki 记忆 + 脚本化启动 + compose（可选）+ README/架构图 → tag v1.0 | 4–5 天 |
 
 执行原则：每个版本结束后系统必须可运行、可演示，禁止出现「重构中途跑不起来」的中间态；版本升级不破坏前端 SSE 协议。
@@ -452,11 +462,10 @@ glm-4.5-flash   首token  5.87s   总  6.01s   8字  发票原件与行程单
 
 ## 7. 立即下一步
 
-1. ✔ 已完成：管理员跑 icacls 修 ACL → 普通窗口补齐依赖 → environment.yml / requirements.txt / .gitignore 已提交就绪
-2. ✔ .gitignore 已写；待你 `git init` 并提交骨架（当前还不是 git 仓库）
-3. ⬜ 放入 1–2 份中文 PDF 到 data/pdfs/（目录已建；放进去后 §2.1 的真实 PDF 测试会自动启用）
-4. ⚠ **当前唯一阻塞项（服务端问题，非代码）**：CSV 里的百炼 key 实测 401 Invalid API-key，8 种组合已排除域名/请求头/解析三类原因（详见 §1.6）→ 请到百炼控制台确认该 key 是否启用、账号是否开通且无欠费，或新建一条 key
-5. ⬜ 拿到可用 key 后：`conda activate langchain1.2; cd backend; python scripts/check_embedding.py` → 4/4 PASS（.env 已生成，无需重填）
-6. ✔ 骨架已完成：config / embeddings / vectorstore / loader / ingest / search + 16 项离线测试全绿
-7. ✔ V1.0 已完成：api/chat.py（SSE）+ main.py + 前端 ChatWindow/MessageBubble/sse.js，端到端验收见 §1.7
-8. ⬜ 你玩过后确认体验 OK → `git init` 提交并打 tag v0.1，然后进 V2.0（LangGraph 状态机）
+1. ✔ 复用 conda `langchain1.2`；不需要重新初始化 Git 或新建环境。
+2. ✔ V1 全栈 RAG、模型切换与 SSE 已完成；V2 自我纠错状态图与前端路径展示已完成，远端已有 `v0.2`。
+3. ✔ 本地资料放 `data/pdfs/`，整目录排除；可分发示例放 `data/pdfs-example/`，使用方法见该目录 README。
+4. ✔ `.doc/example/`、真实密钥、向量库、本机诊断脚本和构建产物均不提交。
+5. 试用现有版本：`.doc\start.bat` 访问 `http://127.0.0.1:8000`；开发前端用 `.doc\start.bat dev` 访问 `http://localhost:5173`。
+6. 新增或更新本地语料后，运行 `.doc\start.bat ingest` 重建索引；该操作会调用配置的 Embedding API。
+7. 后续按 §4 实现 V3 Wiki 记忆闭环与开源文档；沿用 conda 与脚本启动，不依赖 Docker。

@@ -1,13 +1,13 @@
 # Agent.md
 
-> 本文件是 coding agent 在 `wiki-agent` 仓库工作的约束说明。内容基于 2026-10-28 的**实测结果**，不是通用模板。
+> 本文件是 coding agent 在 `wiki-agent` 仓库工作的约束说明。目录与 Git 状态于 2026-10-29 核对；历史测试和 API 验收结果以各节日期为准。
 > 项目演进计划见 `.doc/plan.md`（含 V1.0 验收记录 §1.5–§1.9 与踩坑复盘）。
 
 ## 1. 项目概述
 
 ### 1.1 项目名称
 
-`wiki-agent` —— 带自我纠错与知识沉淀能力的 RAG 问答系统（当前进度：**V2.0 已完成，待用户验收后打 tag v0.2**）。
+`wiki-agent` —— 带自我纠错与知识沉淀能力的 RAG 问答系统（当前进度：**V2.0 已完成并发布 tag v0.2；V3.0 Wiki 记忆待实现**）。
 
 ### 1.2 技术栈
 
@@ -67,7 +67,8 @@
 wiki-agent/
 ├── Agent.md                      # 本文件
 ├── environment.yml               # conda 环境声明（name: langchain1.2）
-├── .gitignore                    # 排除 .env、data/chroma/、node_modules/、scripts/_local/
+├── .gitignore                    # 排除密钥、本地语料、向量库、.doc/example/ 与构建产物
+├── .gitattributes                # Markdown 使用 LF；BAT/PowerShell 脚本使用 CRLF
 ├── .doc/
 │   ├── plan.md                   # 三版本演进计划 + 实测验收记录与踩坑复盘（§1.5–§3.3）
 │   ├── architecture.md           # V1/V2/V3 架构图（Mermaid，V2 已实现）
@@ -108,7 +109,8 @@ wiki-agent/
 │           └── markdown.js               # 零依赖 Markdown 渲染（先转义后替换）
 ├── scripts/start-dev.ps1         # PowerShell 版一键启动（带日志重定向）
 └── data/
-    ├── pdfs/                     # 语料：.pdf/.md/.txt（含示例 sample-handbook.md）
+    ├── pdfs/                     # 本地语料：.pdf/.md/.txt（整目录不提交）
+    ├── pdfs-example/             # 可公开的虚构手册与示例使用说明
     ├── chroma/                   # 向量库持久化（不提交）
     └── wiki/                     # V3 知识沉淀目录（预留）
 ```
@@ -123,7 +125,8 @@ wiki-agent/
 | `environment.yml` | conda 复现入口（`conda env create -f environment.yml`） |
 | `frontend/vite.config.js` | dev 代理，前端只请求相对路径 `/api/*`，因此**不需要**生产环境 CORS |
 | `backend/tests/conftest.py` | 设 `LLM_PROVIDERS=[]` 做测试隔离，防止开发者本机 provider 配置漏进用例 |
-| `.gitignore` | 已排除 `.env`、`data/chroma/`、`backend/scripts/_local/`、`node_modules/` |
+| `.gitignore` | 已排除 `.env`、`data/pdfs/`、`.doc/example/`、`data/chroma/`、`backend/scripts/_local/`、`node_modules/` |
+| `.gitattributes` | 统一文本换行，保证 `.bat` 检出为 CRLF |
 
 ### 4.1 环境变量
 
@@ -156,6 +159,7 @@ wiki-agent/
 - 密钥只存 `backend/.env`（已 gitignore）；`.env.example` 一律占位符。
 - 任何日志、异常、文档、对话输出**不得包含完整密钥**；展示时脱敏。
 - `backend/scripts/_local/` 内的排查脚本写死了本机路径与密钥文件位置，**已 gitignore，禁止提交**。
+- `data/pdfs/` 与 `.doc/example/` 整目录不提交；公开示例只放 `data/pdfs-example/`。更改忽略规则时只清理 Git 索引，保留本地文件。
 
 ### 5.4 XSS 与 CORS
 
@@ -237,24 +241,30 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 cd ../frontend && npm run dev
 ```
 
-### 7.3 构建
+### 7.3 示例语料
+
+- 公开示例位于 `data/pdfs-example/`，内容为虚构员工手册，使用方法见该目录的 `README.md`。
+- 首次运行时，在项目根目录创建 `data/pdfs/`，将 `data/pdfs-example/sample-handbook.md` 复制进去，再运行 `.doc\start.bat ingest`。
+- `ingest` 会重建当前索引并调用 Embedding API；本地 PDF、文本与现有向量库不随 Git 分发。
+
+### 7.4 构建
 
 ```powershell
 cd frontend && npm run build     # 产物 dist/ 会被 FastAPI 自动挂载
 ```
 
-### 7.4 Docker
+### 7.5 Docker
 
 - 本机**未安装 Docker**，`docker-compose.yml` 与两个 `Dockerfile` 属 V3 可选交付物，写完标注"未在本机验证"，验证交给 CI（ubuntu runner 自带 docker）。
 - 容器内不装 conda，用 `python:3.13-slim` + pip。
 
 ## 8. 版本控制
 
-- **远程仓库**：`https://github.com/WaltTYT/wiki-agent`（用户提供；`[待确认：本地尚未 init，无法验证该仓库是否已存在/是否为空]`）
-- **本地 git 状态**：`git status` → **尚未 `git init`**（截至 2026-10-28）。首次初始化需用户确认。
-- **当前分支**：`[待确认：初始化时确定，建议 main]`
+- **远程仓库**：`https://github.com/WaltTYT/wiki-agent`（2026-10-29 已用 `git ls-remote` 核对 `main` 与 `v0.2`）。
+- **本地 git 状态**：已初始化并有 V1/V2 提交历史；实时状态以 `git status` 为准，不要重新初始化或覆盖现有历史。
+- **当前分支**：`main`，跟踪 `origin/main`；`v0.2` 指向 V2 架构图与验收记录提交。
 - **推送策略**：未经用户明确许可，不 `commit`、不 `push`。
-- **提交前必查**：`.env`、`data/chroma/`、`backend/scripts/_local/`、`node_modules/` 均已在 `.gitignore`；不得绕过。
+- **提交前必查**：`.env`、`data/pdfs/`、`.doc/example/`、`data/chroma/`、`backend/scripts/_local/`、`node_modules/` 均已在 `.gitignore`；不得绕过。已跟踪的本地语料只用 `git rm --cached` 从索引移除，禁止删除本地原件。
 
 ### 8.1 提交格式规范
 
