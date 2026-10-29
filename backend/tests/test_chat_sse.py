@@ -11,7 +11,8 @@ from types import SimpleNamespace
 import pytest
 from langchain_core.documents import Document
 
-from app.api.chat import chunk_text, frame, sse_frames
+from app.agents.rag_graph import chunk_text
+from app.api.chat import frame, sse_frames
 from app.rag.embeddings import CharBigramHashEmbeddings
 from app.rag.vectorstore import build_store, reset_collection
 
@@ -75,8 +76,16 @@ async def _drain(agen):
 
 
 def drain(question, store, model, k=2):
-    """同步包装：避免引入 pytest-asyncio 依赖。"""
-    return asyncio.run(_drain(sse_frames(question, store=store, model=model, k=k)))
+    """同步包装：避免引入 pytest-asyncio 依赖。
+
+    V2 起分数由 Grade 节点决定；这里固定注入「有资料即相关」，
+    让本文件继续只验证 SSE 帧协议本身（路由行为见 test_rag_graph.py）。
+    """
+
+    async def always_relevant(question, hits):
+        return bool(hits), "test"
+
+    return asyncio.run(_drain(sse_frames(question, store=store, model=model, k=k, grader=always_relevant)))
 
 
 # ── 帧协议 ────────────────────────────────────────────────
