@@ -326,14 +326,31 @@ START → Retrieve → Grade ──相关──→ Generate → END
 
 ### 3.2 工程改造
 
-- [ ] langgraph 已在 §2.0 一并安装（≥1.1,<2），确认写进 requirements.txt 与 environment.yml 的 pip 段
-- [ ] 事件流按 1.x 实测：V2 开工先写 20 行最小 demo 打印 `graph.astream_events()` 的事件名（1.x 与 0.3 不同，凭记忆猜必踩空），确认哪个事件对应 generate 节点的 token 后再接 SSE；StateGraph / add_conditional_edges 写法 1.x 基本延续
-- [ ] api/chat.py 改为调用 rag_graph.astream_events(state, version="v2")，把 on_chat_model_stream 事件转成原来的 SSE 帧——对前端协议零变更（版本升级不破接口）
-- [ ] SSE 增加 data: {"type":"trace","node":"grade"} 帧（或 GET /chat/history/{trace_id}），前端可选展示「思考路径」小徽章
-- [ ] pytest：mock LLM 打分，断言三种路由（直接生成 / 重写后生成 / 超限兜底）
-- [ ] docs/architecture.md 用 Mermaid 画出上面的图
+- [x] langgraph 已在 §2.0 一并安装（≥1.1,<2），确认写进 requirements.txt 与 environment.yml 的 pip 段
+- [x] 事件流按 1.x 实测：V2 开工先写探针打印 `graph.astream_events()` 事件名（1.x 与 0.3 不同，凭记忆猜必踩空）——实测自定义节点只产生 `on_chain_start/stream/end`，拿不到 `on_chat_model_stream`；且 `stream_mode="updates"` 要等节点跑完才吐。最终改用**节点内 `get_stream_writer()` + `stream_mode="custom"`**（见 §3.3）
+- [x] api/chat.py 改为消费 `rag_graph` 的 custom 流，把 frames 原样转成 SSE —— 对前端协议零变更（只新增 trace 帧）
+- [x] SSE 增加 `data: {"type":"trace","node":"grade"}` 帧，前端可选展示「思考路径」小徽章（MessageBubble 已展示路径 + 兜底标记）
+- [x] pytest：mock LLM 打分，断言三种路由（直接生成 / 重写后生成 / 超限兜底）
+- [x] docs/architecture.md 用 Mermaid 画出上面的图（实际落在 `.doc/architecture.md`，与 plan.md 同目录）
 
-里程碑：tag v0.2。
+里程碑：tag v0.2（待用户检查后提交）。
+
+### 3.3 V2.0 实现与实测记录（2026-10-29）
+
+| 项 | 结果 |
+|---|---|
+| 状态图 | `app/agents/rag_graph.py`：`retrieve → grade →(generate / rewrite)`，`rewrite` 回连 `retrieve`，`MAX_REWRITES=2` 由闭包硬限 |
+| State | TypedDict：`question / rewritten_query / docs / relevant / n_rewrites / answer`；`docs` 存 `Hit`，节点返回局部更新 |
+| Grade | `with_structured_output(GradeVerdict, method="function_calling")`。显式选 tool calling 是因为千问/智谱兼容层对 `json_schema` 支持不一；解析异常时退回「最高相似度 ≥ 0.30」的规则判断，避免单次判断失败导致整条请求 500 |
+| Rewrite | `model.ainvoke()` 改写；异常时沿用旧 query，循环上限兜底 |
+| 兜底生成 | 重写用尽仍不相关 → **不打 LLM**，直接流 `FALLBACK_ANSWER`（确定性、省额度） |
+| 流式 | 节点内 `get_stream_writer()` 写 `sources / trace / token`，`graph.astream(stream_mode="custom")` 消费，帧顺序完全由节点决定 |
+| 为什么不 `astream_events` | 探针实测：自定义节点在图里只有 `on_chain_*` 事件，没有 `on_chat_model_stream`；`updates` 模式又在节点结束后才吐，做不出打字机 |
+| 帧协议 | 仅新增 `trace`（`node` + `relevant/reason/query/fallback`），`sources/token/error/done` 语义未改 |
+| 离线测试 | `pytest -q` → **48 passed**（原 42 + 状态图 6 项） |
+| 前端 | `npm run build` → 18 modules / 72.38 kB；气泡内新增「思考路径」与「资料未覆盖」标记 |
+| 真实 LLM 验收 | **2026-10-29 已通过**（真实 uvicorn `:8000`，qwen3.8-flash，语料 112 chunk）：用例1 相关 → `retrieve → grade(relevant=True) → generate`，首 token 1.43s / 总 1.98s，sources 首条 sample-handbook 0.438；用例2 无答案 → `retrieve → grade(False) → rewrite ×2 → 兜底`，6.67s 返回「当前资料未覆盖该问题…」，全程无 error 帧 |
+
 
 ---
 

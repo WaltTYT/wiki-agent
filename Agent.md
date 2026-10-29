@@ -7,14 +7,14 @@
 
 ### 1.1 项目名称
 
-`wiki-agent` —— 带自我纠错与知识沉淀能力的 RAG 问答系统（当前进度：**V1.0 已完成**）。
+`wiki-agent` —— 带自我纠错与知识沉淀能力的 RAG 问答系统（当前进度：**V2.0 已完成，待用户验收后打 tag v0.2**）。
 
 ### 1.2 技术栈
 
 | 层级 | 技术 | 版本（实测） | 说明 |
 |------|------|-----------|------|
 | 后端框架 | FastAPI | 0.162.0 | 提供 `/api/chat`（SSE）、`/api/models`、`/api/health` |
-| Agent 框架 | LangChain / LangGraph | 1.2.12 / 1.1.10 | LangGraph 属 V2.0，目前仅装未用 |
+| Agent 框架 | LangChain / LangGraph | 1.2.12 / 1.1.10 | LangGraph 用于 V2 状态图（retrieve/grade/rewrite/generate） |
 | 向量库 | ChromaDB + langchain-chroma | 1.5.9 / 1.1.0 | 本地持久化 `data/chroma/`，无独立服务 |
 | 运行时 | Python | 3.13.12 | conda env **`langchain1.2`**（不是 venv） |
 | 前端框架 | Vue | 3.5.44 | **JS 版模板**，非 TypeScript |
@@ -26,9 +26,9 @@
 
 - **模式**：前后端分离，但支持**单端口一体化**——`frontend/dist` 存在时由 FastAPI `StaticFiles` 挂载，只跑 :8000 即可。
 - **通信**：`POST /api/chat` → **SSE 流式**（自定义帧协议，见 §5.5）。前端用 `fetch + ReadableStream` 手动解析，**不用 EventSource**（后者不支持 POST）。
-- **数据流（V1.0）**：PDF/MD/TXT → `loader` 切分 → `text-embedding-v4` 向量化 → Chroma(cosine) → 检索 top-k → 拼 prompt → LLM 流式生成。
+- **数据流（V2.0）**：PDF/MD/TXT → `loader` 切分 → `text-embedding-v4` 向量化 → Chroma(cosine) → `retrieve → grade →(不相关) rewrite / (相关) generate` 状态机 → LLM 流式生成。
 - **外部依赖**：仅两个 HTTP API（千问、智谱）。**无数据库、无 Redis、无 Docker、无消息队列**。
-- **演进路线**：V2.0 用 LangGraph 把直线逻辑改成 `Retrieve → Grade →(不相关) Rewrite / (相关) Generate` 状态机；V3.0 加 `Write_Wiki` 记忆节点。
+- **演进路线**：V3.0 在图尾部加 `Reflect → Write_Wiki → END`，并把 retrieve 改成「先查 wiki_docs、过阈值即直答」。
 
 ## 2. Agent 规则
 
@@ -49,7 +49,7 @@
 
 ### 2.3 验证要求
 
-- 改后端必跑：`cd backend && python -m pytest tests -q`（当前基线 **42 passed**，只增不减）。
+- 改后端必跑：`cd backend && python -m pytest tests -q`（当前基线 **48 passed**，只增不减）。
 - 改前端必跑：`cd frontend && npm run build`（构建失败即语法/模板错误）。
 - 涉及真实 API 的行为，**以真实 uvicorn 为准**，不要信 TestClient 的流式结果（见 §9）。
 - **不要凭记忆猜第三方库的参数**。本项目已多次因"看起来合理的 API"翻车，一律先反射确认：
@@ -69,7 +69,8 @@ wiki-agent/
 ├── environment.yml               # conda 环境声明（name: langchain1.2）
 ├── .gitignore                    # 排除 .env、data/chroma/、node_modules/、scripts/_local/
 ├── .doc/
-│   ├── plan.md                   # 三版本演进计划 + 实测验收记录与踩坑复盘（§1.5–§1.9）
+│   ├── plan.md                   # 三版本演进计划 + 实测验收记录与踩坑复盘（§1.5–§3.3）
+│   ├── architecture.md           # V1/V2/V3 架构图（Mermaid，V2 已实现）
 │   ├── start.bat                 # 一键启动（双击即用）
 │   └── *.pdf                     # 论文参考资料（自适应 RAG、混合检索与 Agentic RAG）
 ├── backend/
@@ -81,8 +82,10 @@ wiki-agent/
 │   │   ├── llm.py                # make_chat_model（按 provider 决定是否下发 enable_thinking）
 │   │   ├── schemas.py            # ChatRequest / ModelInfo / HealthResponse
 │   │   ├── main.py               # FastAPI 入口、CORS、启动自检、StaticFiles 一体化
-│   │   ├── api/chat.py           # /api/chat SSE + /api/models + 模型白名单校验
-│   │   ├── agents/prompts.py     # 所有 Prompt 集中管理（V2/V3 也放这里）
+│   │   ├── api/chat.py           # /api/chat SSE（消费 V2 状态图）+ /api/models + 模型白名单校验
+│   │   ├── agents/
+│   │   │   ├── rag_graph.py      # V2 LangGraph 状态机 + 默认 grader + chunk_text
+│   │   │   └── prompts.py        # 所有 Prompt 集中管理（V3 reflect 也放这里）
 │   │   └── rag/
 │   │       ├── embeddings.py     # Embedding 工厂（缺配置即 raise，禁止静默降级）
 │   │       ├── loader.py         # PDF/MD/TXT 抽取与中文切分
@@ -94,7 +97,7 @@ wiki-agent/
 │   │   ├── smoke_live.py         # V1.0 真实端到端验收
 │   │   ├── compare_models.py     # 跨 provider 模型对比（--server 模式为准）
 │   │   └── _local/               # 本机一次性排查脚本，已 gitignore，勿提交
-│   └── tests/                    # 42 项离线测试（不联网、不花 API 钱）
+│   └── tests/                    # 48 项离线测试（不联网、不花 API 钱）
 ├── frontend/
 │   ├── vite.config.js            # server.proxy: /api -> 127.0.0.1:8000
 │   └── src/
@@ -163,27 +166,34 @@ wiki-agent/
 
 ```text
 data: {"type":"sources","refs":[{"source":"x.md","page":null,"score":0.44}]}
+data: {"type":"trace","node":"retrieve"}
+data: {"type":"trace","node":"grade","relevant":false,"reason":"..."}
+data: {"type":"trace","node":"rewrite","query":"改写后的检索词"}
+data: {"type":"trace","node":"generate","fallback":false}
 data: {"type":"token","text":"答"}
 data: {"type":"error","message":"..."}
 data: {"type":"done"}
 ```
 
+- **`sources` 必须是第一帧**（前端拿到就渲染引用，离线测试也按这条断言）。
+- `trace` 是 V2 新增：只新增 type，不改既有字段语义；`node` ∈ `retrieve|grade|rewrite|generate`，其余字段按节点可选。
 - 只转发 `chunk.content`；**`reasoning_content` 一律丢弃**（qwen3.8 默认带思考）。
 - 异常路径也必须以 `error` + `done` 收尾，否则前端永久挂起。
-- 版本升级（V2 加 `trace` 帧）只允许**新增** type，不得改动既有字段语义。
+- 重写次数用尽仍不相关时，`generate` 帧带 `fallback:true`，随后是一条兜底 token（不调 LLM）。
 
 ## 6. 测试指南
 
 ### 6.1 后端测试（离线，默认必须全绿）
 
-- 目录：`backend/tests/`，共 **42 项**，不联网、不消耗 API 额度。
+- 目录：`backend/tests/`，共 **48 项**，不联网、不消耗 API 额度。
 - 命令：
   ```powershell
   conda activate langchain1.2
   cd backend
   python -m pytest tests -q
   ```
-- 覆盖：embedding 缺配置必须 raise、Chroma space 必须 cosine、分数 clamp、入库幂等、SSE 帧序与异常收尾、思考内容不外泄、多 Provider 凭证路由、模型白名单 400。
+- 覆盖：embedding 缺配置必须 raise、Chroma space 必须 cosine、分数 clamp、入库幂等、SSE 帧序与异常收尾、思考内容不外泄、多 Provider 凭证路由、模型白名单 400、V2 三条路由（直接生成 / 改写后生成 / 超限兜底）与打分兜底。
+- 状态图测试用 `tests/test_rag_graph.py` 注入假 grader / 假模型，**不要**为了测试去连真实 LLM。
 - **不依赖 `pytest-asyncio`**：异步用例用 `asyncio.run()` 包装（该包在 requirements 里标为可选）。
 
 ### 6.2 前端测试
@@ -283,6 +293,9 @@ cd frontend && npm run build     # 产物 dist/ 会被 FastAPI 自动挂载
 | `.bat` 必须 **ASCII + CRLF + 无 BOM** | UTF-8 中文会让 cmd 按字节偏移解析错位；BOM 会破坏首行 `@echo off` |
 | `Start-Process` 启动 npm 要写 `npm.cmd` | npm 是 `.cmd` 包装脚本，报"不是有效的 Win32 应用程序" |
 | 流式判定以真实 uvicorn 为准 | `TestClient` 每次 `stream()` 另起事件循环，第二次请求可能 `Event loop is closed` |
+| LangGraph 1.x 自定义节点必须用 `get_stream_writer()` + `astream(stream_mode="custom")` | 实测 `astream_events` 对自定义节点只给 `on_chain_start/stream/end`，没有 `on_chat_model_stream`，拿不到 token；`updates` 模式要等节点跑完才吐，做不出打字机 |
+| `with_structured_output` 显式 `method="function_calling"` | 千问/智谱兼容层对 `json_schema` 支持不一，tool calling 覆盖更广；解析失败必须退回规则判断，不能把请求打成 500 |
+| `MAX_REWRITES` 用闭包写进条件边，不放 State | TypedDict 之外的 key 会被 LangGraph 丢掉；写进 state 的 `_max_rewrites` 不会生效 |
 
 ### 9.2 生态与数据限制
 
