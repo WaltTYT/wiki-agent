@@ -23,10 +23,10 @@ function parseFrame(block) {
 
 /**
  * @param {string} question
- * @param {object} handlers { model, onSources(refs), onToken(text), onError(msg), onDone(), signal }
+ * @param {object} handlers { model, onSources(refs), onTrace(trace), onToken(text), onError(msg), onDone(), signal }
  */
 export async function streamChat(question, handlers = {}) {
-  const { onSources, onToken, onError, onDone, signal, model } = handlers
+  const { onSources, onTrace, onToken, onError, onDone, signal, model } = handlers
   const res = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -46,6 +46,7 @@ export async function streamChat(question, handlers = {}) {
   const emit = (payload) => {
     if (!payload) return
     if (payload.type === 'sources') onSources && onSources(payload.refs || [])
+    else if (payload.type === 'trace') onTrace && onTrace(payload)
     else if (payload.type === 'token') onToken && onToken(payload.text || '')
     else if (payload.type === 'error') onError && onError(payload.message || '未知错误')
     else if (payload.type === 'done') onDone && onDone()

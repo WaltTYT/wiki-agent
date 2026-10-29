@@ -61,7 +61,7 @@ async function ask(question) {
 
   const usedModel = currentModel.value
   messages.value.push({ role: 'user', text: q })
-  messages.value.push({ role: 'assistant', text: '', sources: [], error: '', streaming: true, model: usedModel })
+  messages.value.push({ role: 'assistant', text: '', sources: [], trace: [], error: '', streaming: true, model: usedModel })
   // 关键：必须取回数组里的「响应式代理」来改。
   // 若直接持有 push 之前的原始对象（const reply = {...}; push(reply)），
   // 改 reply.text 不会触发渲染 —— Vue 3 的 raw/proxy 陷阱，
@@ -74,6 +74,7 @@ async function ask(question) {
       model: usedModel,
       signal: controller.signal,
       onSources: (refs) => { reply.sources = refs },
+      onTrace: (t) => { reply.trace.push(t) },
       onToken: (t) => { reply.text += t; scrollBottom() },
       onError: (m) => { reply.error = m },
     })
@@ -106,7 +107,7 @@ onBeforeUnmount(stop)
     <header>
       <div class="brand">
         <b>wiki-agent</b>
-        <span>V1.0 · RAG 流式问答</span>
+        <span>V2.0 · 自我纠错 RAG</span>
       </div>
       <div class="controls">
         <label v-if="models.length" class="model">

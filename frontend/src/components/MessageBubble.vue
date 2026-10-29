@@ -3,11 +3,20 @@ import { computed } from 'vue'
 import { renderMarkdown } from '../utils/markdown.js'
 
 const props = defineProps({
-  msg: { type: Object, required: true }, // { role, text, sources, error, streaming }
+  msg: { type: Object, required: true }, // { role, text, sources, trace, error, streaming }
 })
+
+const NODE_LABELS = { retrieve: '检索', grade: '判断', rewrite: '改写', generate: '生成' }
 
 const html = computed(() => renderMarkdown(props.msg.text))
 const isUser = computed(() => props.msg.role === 'user')
+// V2 思考路径：把 trace 帧折叠成「检索 → 判断 → 生成」这样的短链
+const tracePath = computed(() =>
+  (props.msg.trace || []).map((t) => NODE_LABELS[t.node] || t.node).join(' → ')
+)
+const isFallback = computed(() =>
+  (props.msg.trace || []).some((t) => t.node === 'generate' && t.fallback)
+)
 </script>
 
 <template>
@@ -17,6 +26,12 @@ const isUser = computed(() => props.msg.role === 'user')
       <div v-else-if="!isUser" class="answer placeholder">…</div>
       <template v-else>{{ msg.text }}</template>
       <span v-if="msg.streaming" class="caret" />
+
+      <div v-if="!isUser && tracePath" class="trace">
+        <span class="trace-label">思考路径</span>
+        {{ tracePath }}
+        <span v-if="isFallback" class="fallback">资料未覆盖</span>
+      </div>
 
       <div v-if="!isUser && msg.sources && msg.sources.length" class="sources">
         <span class="sources-label">参考来源</span>
@@ -59,6 +74,18 @@ const isUser = computed(() => props.msg.role === 'user')
   background: #2f6feb; vertical-align: -2px; animation: blink 1s steps(2, start) infinite;
 }
 @keyframes blink { to { visibility: hidden; } }
+.trace {
+  margin-top: 8px; font-size: 12px; color: #8b9199;
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.trace-label {
+  background: #eef2fb; color: #2f6feb; border-radius: 999px;
+  padding: 1px 8px; font-size: 11px;
+}
+.fallback {
+  background: #fff7e6; color: #b26a00; border: 1px solid #ffe1a8;
+  border-radius: 999px; padding: 0 8px; font-size: 11px;
+}
 .sources { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #d7dadf; font-size: 12px; }
 .sources-label { color: #8b9199; margin-right: 6px; }
 .chip {
