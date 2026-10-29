@@ -47,19 +47,24 @@ const isFallback = computed(() =>
 </template>
 
 <style scoped>
-.row { display: flex; margin: 10px 0; }
+.row { display: flex; margin: 14px 0; }
 .row.right { justify-content: flex-end; }
+/* 助手回答不套气泡，直接平铺文字（DeepSeek 的阅读感更好）；用户消息保留浅灰气泡 */
 .bubble {
-  max-width: 78%;
-  padding: 10px 14px;
-  border-radius: 14px;
-  background: #f4f5f7;
-  line-height: 1.7;
+  max-width: 100%;
+  padding: 0;
+  line-height: 1.75;
   word-break: break-word;
   white-space: pre-wrap;
 }
-.bubble.is-user { background: #2f6feb; color: #fff; }
-.bubble.has-error { border: 1px solid #f0b4b4; background: #fdf2f2; }
+.bubble.is-user {
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: #eff2f6;
+  color: #1f2328;
+}
+.bubble.has-error { padding: 10px 14px; border: 1px solid #f0b4b4; border-radius: 14px; background: #fdf2f2; }
 .answer { white-space: normal; }
 .placeholder { color: #9aa0a6; }
 :deep(pre.code) {
