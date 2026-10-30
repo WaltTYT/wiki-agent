@@ -370,34 +370,54 @@ START → Retrieve → Grade ──相关──→ Generate → END
 
 ### 4.1 Write_Wiki 记忆闭环
 
-- [ ] 图扩展：Generate → Reflect → (高价值) Write_Wiki → END
-- [ ] Reflect：LLM 判断本轮 QA 是否值得沉淀（相关、完整、非闲聊），结构化输出 {worth, title, summary}
-- [ ] Write_Wiki：写入 data/wiki/{slug}.md（frontmatter: title / question / sources / created_at），并 upsert 进 Chroma 独立 collection wiki_docs
-- [ ] 优先检索：Retrieve 改为「先查 wiki_docs，命中且相似度过阈值 → 直接走 Generate（免 PDF 检索）；否则查 pdf_docs」——这就是「下次优先检索 Wiki」
-- [ ] 去重：写前用 title 向量比对已有 wiki 条目，相似则更新（合并引用来源）而非新增，防止 wiki 灌水形成检索回声室
-- [ ] GET /wiki 列表接口 + 前端侧栏展示沉淀条目（加分项，体现「记忆可见」）
+- [x] 图扩展：Generate → Reflect → (高价值) Write_Wiki → END
+- [x] Reflect：LLM 判断本轮 QA 是否值得沉淀（相关、完整、非闲聊），结构化输出 {worth, title, summary}
+- [x] Write_Wiki：写入 data/wiki/{slug}.md（frontmatter: title / question / sources / created_at），并 upsert 进 Chroma 独立 collection wiki_docs
+- [x] 优先检索：Retrieve 改为「先查 wiki_docs，命中且相似度过阈值 → 直接走 Generate（免 PDF 检索）；否则查 pdf_docs」——这就是「下次优先检索 Wiki」
+- [x] 去重：写前用 title 向量比对已有 wiki 条目，相似则更新（合并引用来源）而非新增，防止 wiki 灌水形成检索回声室
+- [x] GET /wiki 列表接口 + 前端侧栏展示沉淀条目（加分项，体现「记忆可见」）；另加 DELETE /wiki/{slug} 人工删
 
 ### 4.2 工程化（无 Docker 版为主路径）
 
-- [ ] scripts/start-dev.ps1：一条命令拉起后端与前端，Ctrl+C 一起退出；README「快速开始」以它为准
+- [x] scripts/start-dev.ps1：一条命令拉起后端与前端，Ctrl+C 一起退出；README「快速开始」以它为准
   ```powershell
   # 后端：conda run -n langchain1.2 uvicorn app.main:app --reload --port 8000（工作目录 backend/）
   # 前端：Push-Location frontend; npm run dev; Pop-Location
   ```
-- [ ] scripts/ingest.ps1（conda run 重建向量库）、scripts/test.ps1（conda run -n langchain1.2 pytest backend/tests）
+- [x] scripts/ingest.ps1（重建向量库，默认 --if-changed）、scripts/test.ps1（pytest backend/tests）
 - [x] 可分发产物已验证：`npm run build` → dist/ 由 FastAPI StaticFiles 挂载，**单端口 :8000 同时提供 UI 与 API**（实测 GET / 返回 200 text/html，/api/* 不被 mount 抢占）
-- [ ] backend/Dockerfile、frontend/Dockerfile、docker-compose.yml：仍按开源标准写好（compose：frontend 8080、backend 8000，./data 挂卷；nginx 反代 /api 记得 proxy_buffering off + chunked_transfer_encoding on）。容器内**不装 conda**，用 python:3.13-slim + pip 装 requirements.txt，保持镜像瘦；本机不构建，标注「可选，CI/有 Docker 环境验证」
-- [ ] .github/workflows/ci.yml：actions/setup-python(3.11) + pip install -r backend/requirements.txt + pytest；加一条 docker compose build 冒烟（runner 自带 docker）。若要严格复现 conda，可换 mamba-org/setup-micromamba + `conda env create -f environment.yml`
+- [x] backend/Dockerfile、frontend/Dockerfile、docker-compose.yml：仍按开源标准写好（compose：frontend 8080、backend 8000，./data 挂卷；nginx 反代 /api 记得 proxy_buffering off + chunked_transfer_encoding on）。容器内**不装 conda**，用 python:3.13-slim + pip 装 requirements.txt，保持镜像瘦；本机不构建，标注「可选，CI/有 Docker 环境验证」
+- [x] .github/workflows/ci.yml：actions/setup-python(3.13) + pip install -r backend/requirements.txt + pytest；加一条 docker compose build 冒烟（runner 自带 docker）。若要严格复现 conda，可换 mamba-org/setup-micromamba + `conda env create -f environment.yml`
 - [ ] 依赖钉版本：每次 pip 装完就 `pip freeze > backend/requirements.txt` 并提交，环境坏了可用 environment.yml 原地重建
-- [ ] .pre-commit-config.yaml（ruff）
+  - 本次未执行：现有 requirements.txt 是「主包 + 上界」策略，直接 pip freeze 会把 100+ 传递依赖展开成整屏锁定，后续单独做一次「锁定快照」提交
+- [x] .pre-commit-config.yaml（ruff，仅 lint 不自动排版）
 
 ### 4.3 开源门面
 
-- [ ] README.md：一句话定位 → GIF/截图演示 → 亮点（自我纠错 + Wiki 记忆）→ 30 秒快速开始（conda env create -f environment.yml + scripts/start-dev.ps1 为主，Docker 作为可选路径）→ 架构图 → 路线图
-- [ ] docs/architecture.md：整图（V1 数据流 + V2 状态机 + V3 记忆环）Mermaid
-- [ ] LICENSE（MIT）、.github/ISSUE_TEMPLATE、贡献指南小节
+- [x] README.md：一句话定位 → 实测输出 → 亮点（自我纠错 + Wiki 记忆）→ 30 秒快速开始（conda env create -f environment.yml + scripts/start-dev.ps1 为主，Docker 作为可选路径）→ 架构图 → 路线图
+- [x] docs/architecture.md：整图（V1 数据流 + V2 状态机 + V3 记忆环）Mermaid（实际在 `.doc/architecture.md`）
+- [x] LICENSE（MIT）、.github/ISSUE_TEMPLATE、贡献指南小节（README「参与贡献」）
 
 里程碑：tag v1.0 并推送开源仓库。
+
+### 4.4 V3.0 实现与实测记录（2026-10-30）
+
+| 项 | 结果 |
+|---|---|
+| 记忆存储 | `app/rag/wiki.py`：`data/wiki/{sha1(title)[:10]}.md` + `index.md`；frontmatter 手写 `key: value` + `sources` JSON 数组，避免新增 PyYAML 依赖 |
+| slug 设计 | **不含日期**：`YYYYMMDD+hash` 会让昨天的问题今天再生成一个文件，去重直接失效；时间只写 frontmatter 的 created_at |
+| wiki_docs | 与 pdf_docs 共用 embedding，独立 collection；upsert = `delete(ids=[slug])` + `add_documents`，langchain-chroma 重复 id 行为不稳，删除是幂等的 |
+| 优先检索 | `retrieve` 先查 wiki_docs，`WIKI_SIM_THRESHOLD=0.68` 过阈值直接 `generate`，**跳过 grade 与 PDF 检索**；低于阈值安静回落 |
+| 去重 | ①同一问题文本 → 复用 slug；②标题向量 ≥ `WIKI_DEDUPE_THRESHOLD=0.92` → 复用；③合并 sources（`hr.pdf#3` 保留页码） |
+| Reflect | `ReflectVerdict{worth,title,summary}` + `method="function_calling"`；异常/不支持 → 返回 None，静默不沉淀、不发 trace，绝不影响已生成答案 |
+| 兜底保护 | 兜底生成（fallback）路由直接 END，不进 reflect，保证「资料未覆盖」不会被写成记忆 |
+| 可观测 | trace 新增 `retrieve.from_wiki` / `reflect.worth,title` / `write_wiki.slug,merged`；sources.refs 新增 `kind: pdf|wiki` |
+| 人工删 | `DELETE /api/wiki/{slug}`：slug 白名单校验防路径穿越；向量同步失败只影响下次命中，md 仍删 |
+| 前端 | 侧栏新增「Wiki 记忆」面板（标题/问题/来源/日期 + 删除）；气泡新增「来自记忆 / 已沉淀记忆」徽章与 wiki 来源样式；版本号 V3.0 |
+| 离线测试 | `pytest -q` → **60 passed**（原 48 + Wiki 12 项），含 wiki 优先跳过 grade、reflect 写入/不写入、兜底不写、去重合并、API 增删 |
+| 前端构建 | `npm run build` → 21 modules / 88.38 kB（gzip 34.05 kB） |
+| 真实 LLM 验收 | **2026-10-30 已通过**（qwen3.8-flash，语料 112 chunk）：<br>第1次问「差旅报销需要提供哪些材料？」→ `retrieve(from_wiki=false) → grade(true) → generate → reflect(worth=true) → write_wiki`，首 token 1.93s / 总 3.36s，落入 `data/wiki/21a4f29508.md`，sources 合并 `sample-handbook.md` + 3 条 PDF 页码；<br>第2次同一问题 → `retrieve(from_wiki=true) → generate`，sources 首条 `wiki/21a4f29508.md(0.705)`，首 token 0.44s / 总 0.51s，**提速 3.36s → 0.51s** |
+| 验收脚本 | 临时脚本跑完即删；测试记忆与向量也已清理，`data/wiki/` 初始为空（首次写入时自动建目录 + 索引） |
 
 ---
 
@@ -454,7 +474,7 @@ glm-4.5-flash   首token  5.87s   总  6.01s   8字  发票原件与行程单
 | W0 | **已完成（2026-10-28）**：修 ACL ✔ / 补齐依赖 ✔ / requirements.txt ✔ / Chroma 冒烟 ✔；剩 1 项：embedding 选型（决策 5a） | 0.5 天 |
 | W1 | **V1.0 已完成并通过真实端到端验收（2026-10-28）**，见 §1.7；代码已合入 `main` | 5 天 |
 | W2 | **V2.0 已完成**：LangGraph + Grade/Rewrite + 测试；远端已有 `v0.2` | 4–5 天 |
-| W3 | V3.0 Wiki 记忆 + 脚本化启动 + compose（可选）+ README/架构图 → tag v1.0 | 4–5 天 |
+| W3 | **V3.0 已完成（2026-10-30）**：Wiki 记忆闭环 + 脚本化启动 + compose（可选）+ README/架构图；离线 60 项与真实 LLM 双轮验收均通过，待打 tag v1.0 | 4–5 天 |
 
 执行原则：每个版本结束后系统必须可运行、可演示，禁止出现「重构中途跑不起来」的中间态；版本升级不破坏前端 SSE 协议。
 
@@ -464,8 +484,9 @@ glm-4.5-flash   首token  5.87s   总  6.01s   8字  发票原件与行程单
 
 1. ✔ 复用 conda `langchain1.2`；不需要重新初始化 Git 或新建环境。
 2. ✔ V1 全栈 RAG、模型切换与 SSE 已完成；V2 自我纠错状态图与前端路径展示已完成，远端已有 `v0.2`。
-3. ✔ 本地资料放 `data/pdfs/`，整目录排除；可分发示例放 `data/pdfs-example/`，使用方法见该目录 README。
-4. ✔ `.doc/example/`、真实密钥、向量库、本机诊断脚本和构建产物均不提交。
-5. 试用现有版本：`.doc\start.bat` 访问 `http://127.0.0.1:8000`；开发前端用 `.doc\start.bat dev` 访问 `http://localhost:5173`。
-6. 新增或更新本地语料后无需手动操作：`.doc\start.bat` 启动前会用语料指纹（文件名/大小/mtime/切分参数）比对 `data/chroma/corpus_stamp.json`，有变化才重建索引（会调用 Embedding API）；`.doc\start.bat ingest` 可强制全量重建。
-7. 后续按 §4 实现 V3 Wiki 记忆闭环与开源文档；沿用 conda 与脚本启动，不依赖 Docker。
+3. ✔ V3.0 Wiki 记忆闭环已完成并通过真实 LLM 验收（详见 §4.4）：第一次问走文档并沉淀，再问同一问题命中 `wiki/...`，3.36s → 0.51s。
+4. ✔ 本地资料放 `data/pdfs/`，整目录排除；可分发示例放 `data/pdfs-example/`，使用方法见该目录 README。
+5. ✔ `.doc/example/`、真实密钥、向量库、本机诊断脚本和构建产物均不提交。
+6. 试用现有版本：`.doc\start.bat` 访问 `http://127.0.0.1:8000`；开发前端用 `.doc\start.bat dev` 访问 `http://localhost:5173`。
+7. 新增或更新本地语料后无需手动操作：`.doc\start.bat` 启动前会用语料指纹（文件名/大小/mtime/切分参数）比对 `data/chroma/corpus_stamp.json`，有变化才重建索引（会调用 Embedding API）；`.doc\start.bat ingest` 可强制全量重建。
+8. 剩余收尾：`git tag -a v1.0` 并推送；`requirements.txt` 的锁定快照留作单独提交（见 §4.2）。

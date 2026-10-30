@@ -64,6 +64,8 @@ class Settings(BaseSettings):
     # ---- 检索与 Agent 行为 ----
     retrieval_k: int = 4
     wiki_sim_threshold: float = 0.68
+    # 标题向量相似度达到该值就视为同一条记忆，合并来源而不是新增（plan §4.1 去重）
+    wiki_dedupe_threshold: float = 0.92
     chunk_size: int = 800
     chunk_overlap: int = 150
     max_rewrites: int = 2

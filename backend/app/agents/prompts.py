@@ -63,3 +63,25 @@ FALLBACK_ANSWER = (
     "当前资料未覆盖该问题（已自动改写检索词重试，仍未找到相关依据）。"
     "建议补充相关文档后再问，或换一种说法。"
 )
+
+
+# ── V3.0 Reflect：判断本轮问答是否值得沉淀成 Wiki 记忆 ──────
+REFLECT_SYSTEM = (
+    "你是知识沉淀审核员，只做判断，不回答问题。\n"
+    "只有同时满足下列条件才值得沉淀：\n"
+    "1. 答案确实依据【资料】得出，且明确、完整、可复用；\n"
+    "2. 问题不是寒暄、闲聊、一次性调试，也不是对上一轮的追问；\n"
+    "3. 答案与资料没有明显矛盾，也没有「未覆盖」「不确定」这类兜底措辞。\n"
+    "拿不准就判不值得（宁缺毋滥，低质记忆会污染后续检索）。"
+)
+
+REFLECT_HUMAN = (
+    "【问题】\n{question}\n\n【答案】\n{answer}\n\n【资料】\n{context}"
+)
+
+
+def build_reflect_messages(question: str, answer: str, chunks: list[str]) -> list[tuple[str, str]]:
+    return [
+        ("system", REFLECT_SYSTEM),
+        ("user", REFLECT_HUMAN.format(question=question, answer=answer, context=build_context(chunks))),
+    ]

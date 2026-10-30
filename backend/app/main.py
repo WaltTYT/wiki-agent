@@ -16,10 +16,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .api.chat import router as chat_router
+from .api.ingest import router as ingest_router
+from .api.wiki import router as wiki_router
 from .config import get_settings
 from .schemas import HealthResponse
 
-app = FastAPI(title="wiki-agent", version="0.1.0")
+app = FastAPI(title="wiki-agent", version="0.3.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -30,6 +32,8 @@ app.add_middleware(
 )
 
 app.include_router(chat_router, prefix="/api")
+app.include_router(ingest_router, prefix="/api")
+app.include_router(wiki_router, prefix="/api")
 
 
 @app.on_event("startup")

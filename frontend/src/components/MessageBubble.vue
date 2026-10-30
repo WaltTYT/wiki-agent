@@ -6,7 +6,7 @@ const props = defineProps({
   msg: { type: Object, required: true }, // { role, text, sources, trace, error, streaming }
 })
 
-const NODE_LABELS = { retrieve: '检索', grade: '判断', rewrite: '改写', generate: '生成' }
+const NODE_LABELS = { retrieve: '检索', grade: '判断', rewrite: '改写', generate: '生成', reflect: '反思', write_wiki: '记忆' }
 
 const html = computed(() => renderMarkdown(props.msg.text))
 const isUser = computed(() => props.msg.role === 'user')
@@ -17,6 +17,14 @@ const tracePath = computed(() =>
 const isFallback = computed(() =>
   (props.msg.trace || []).some((t) => t.node === 'generate' && t.fallback)
 )
+// V3 记忆命中：来源全为 wiki/... 时，给一个「来自记忆」的提示
+const fromWiki = computed(() =>
+  (props.msg.trace || []).some((t) => t.node === 'retrieve' && t.from_wiki)
+)
+const wroteWiki = computed(() => {
+  const t = (props.msg.trace || []).find((x) => x.node === 'write_wiki')
+  return t && !t.error ? t : null
+})
 </script>
 
 <template>
@@ -31,11 +39,13 @@ const isFallback = computed(() =>
         <span class="trace-label">思考路径</span>
         {{ tracePath }}
         <span v-if="isFallback" class="fallback">资料未覆盖</span>
+        <span v-if="fromWiki" class="memory">来自记忆</span>
+        <span v-if="wroteWiki" class="memory">{{ wroteWiki.merged ? '已更新记忆' : '已沉淀记忆' }}</span>
       </div>
 
       <div v-if="!isUser && msg.sources && msg.sources.length" class="sources">
         <span class="sources-label">参考来源</span>
-        <span v-for="(s, i) in msg.sources" :key="i" class="chip">
+        <span v-for="(s, i) in msg.sources" :key="i" class="chip" :class="{ wiki: s.kind === 'wiki' }">
           {{ s.source }}<template v-if="s.page">·第{{ s.page }}页</template>
           <em v-if="typeof s.score === 'number'">{{ s.score.toFixed(2) }}</em>
         </span>
@@ -91,12 +101,17 @@ const isFallback = computed(() =>
   background: #fff7e6; color: #b26a00; border: 1px solid #ffe1a8;
   border-radius: 999px; padding: 0 8px; font-size: 11px;
 }
+.memory {
+  background: #eaf7ef; color: #1f7a4d; border: 1px solid #c7ebd6;
+  border-radius: 999px; padding: 0 8px; font-size: 11px;
+}
 .sources { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #d7dadf; font-size: 12px; }
 .sources-label { color: #8b9199; margin-right: 6px; }
 .chip {
   display: inline-block; background: #fff; border: 1px solid #e1e4e8; border-radius: 999px;
   padding: 1px 8px; margin: 2px 4px 2px 0; color: #444;
 }
+.chip.wiki { border-color: #c7ebd6; background: #f4fbf7; color: #1f7a4d; }
 .chip em { font-style: normal; color: #9aa0a6; margin-left: 4px; }
 .err { margin-top: 6px; color: #c0392b; font-size: 13px; }
 .meta { margin-top: 6px; font-size: 11px; color: #9aa0a6; text-align: right; }

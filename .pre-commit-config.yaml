@@ -1,0 +1,8 @@
+# 本地钩子（plan §4.2）：pip install pre-commit && pre-commit install
+# 只跑 lint，不做自动排版 —— ruff-format 会重写大量既有文件，保持 diff 聚焦。
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.2
+    hooks:
+      - id: ruff
+        args: [--fix]

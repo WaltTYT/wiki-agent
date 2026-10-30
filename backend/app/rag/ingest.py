@@ -69,6 +69,61 @@ def write_stamp(path, digest: str, n_files: int, n_chunks: int) -> None:
     )
 
 
+class EmptyCorpusError(RuntimeError):
+    """语料目录里没有可入库的文件。"""
+
+
+def run_ingest(
+    *,
+    pdf_dir,
+    chroma,
+    collection: str = PDF_COLLECTION,
+    kinds: tuple[str, ...] = ("pdf", "text"),
+    chunk_size: int = 800,
+    chunk_overlap: int = 150,
+    limit: int = 0,
+    if_changed: bool = False,
+    embeddings=None,
+) -> dict:
+    """入库一次，返回 {changed, files, chunks, total, seconds}。
+
+    if_changed=True：指纹一致且集合非空就跳过（不调 Embedding API）。
+    embeddings 可注入，离线测试用假向量。
+    """
+    t0 = time.time()
+    root = Path(pdf_dir)
+    chroma_path = Path(chroma)
+    stamp_file = chroma_path / "corpus_stamp.json"
+    digest, n_files = corpus_digest(root, kinds, chunk_size, chunk_overlap)
+    store = build_store(embeddings or make_embeddings(), str(chroma_path), collection)
+
+    def result(changed: bool, chunks: int) -> dict:
+        return {
+            "changed": changed,
+            "files": n_files,
+            "chunks": chunks,
+            "total": store._collection.count(),
+            "seconds": round(time.time() - t0, 2),
+        }
+
+    if n_files == 0:
+        if if_changed:
+            return result(False, 0)
+        raise EmptyCorpusError(f"{root} 没找到语料（PDF/文本）")
+    if if_changed and read_stamp(stamp_file).get("digest") == digest and store._collection.count() > 0:
+        return result(False, 0)
+
+    docs = load_dir(root, chunk_size, chunk_overlap, kinds)
+    if not docs:
+        raise EmptyCorpusError(f"{root} 没找到可读语料（PDF/文本）")
+    if limit and limit < len(docs):
+        docs = docs[:limit]
+    reset_collection(store)
+    n = add_documents(store, docs, ids=[d.metadata["chunk_id"] for d in docs])
+    write_stamp(stamp_file, digest, n_files, len(docs))
+    return result(True, n)
+
+
 def main(argv: list[str] | None = None) -> int:
     _force_utf8_stdout()
     s = get_settings()
@@ -83,38 +138,31 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--if-changed", action="store_true", help="语料指纹未变且集合非空时跳过重建")
     args = ap.parse_args(argv)
 
-    t0 = time.time()
     kinds = tuple(x.strip() for x in args.kinds.split(",") if x.strip())
-    pdf_dir = Path(args.pdf_dir)
-    stamp_file = Path(args.chroma) / "corpus_stamp.json"
-    digest, n_files = corpus_digest(pdf_dir, kinds, args.chunk_size, args.chunk_overlap)
-    if args.if_changed:
-        if n_files == 0:
-            print(f"[i] {pdf_dir} 没有语料，跳过入库")
-            return 0
-        store = build_store(make_embeddings(), args.chroma, args.collection)
-        prev = read_stamp(stamp_file)
-        if prev.get("digest") == digest and store._collection.count() > 0:
-            print(f"[i] 语料无变化（{n_files} 个文件 / {store._collection.count()} chunks），跳过入库")
-            return 0
-        print("[i] 检测到语料变化，重建索引…")
-
-    docs = load_dir(pdf_dir, args.chunk_size, args.chunk_overlap, kinds)
-    if not docs:
-        print(f"[X] 在 {args.pdf_dir} 没找到语料（PDF/文本），先放文件进去（plan §7 第 3 步）", file=sys.stderr)
+    try:
+        r = run_ingest(
+            pdf_dir=args.pdf_dir,
+            chroma=args.chroma,
+            collection=args.collection,
+            kinds=kinds,
+            chunk_size=args.chunk_size,
+            chunk_overlap=args.chunk_overlap,
+            limit=args.limit,
+            if_changed=args.if_changed,
+        )
+    except EmptyCorpusError as ex:
+        print(f"[X] {ex}，先放文件进去（plan §7 第 3 步）", file=sys.stderr)
         return 1
-    total = len(docs)
-    if args.limit and args.limit < total:
-        docs = docs[: args.limit]
-        print(f"[i] 抽取到 {total} 个 chunk，按 --limit 只入库前 {len(docs)} 个")
-    print(f"[i] 抽取切分得到 {len(docs)} 个 chunk（{time.time() - t0:.1f}s）")
 
-    store = build_store(make_embeddings(), args.chroma, args.collection)
-    reset_collection(store)
-    n = add_documents(store, docs, ids=[d.metadata["chunk_id"] for d in docs])
-    write_stamp(stamp_file, digest, n_files, len(docs))
-    print(f"[OK] 已入库 {n} 条 → collection={args.collection} @ {args.chroma}")
-    print(f"[i] 集合总数 {store._collection.count()} / space={store._collection.configuration['hnsw']['space']}")
+    if not r["files"]:
+        print(f"[i] {args.pdf_dir} 没有语料，跳过入库")
+        return 0
+    if not r["changed"]:
+        print(f"[i] 语料无变化（{r['files']} 个文件 / {r['total']} chunks），跳过入库")
+        return 0
+    print(f"[i] 抽取切分 + 入库 {r['chunks']} 个 chunk（{r['seconds']}s）")
+    print(f"[OK] 已入库 {r['chunks']} 条 → collection={args.collection} @ {args.chroma}")
+    print(f"[i] 集合总数 {r['total']} / space=cosine")  # build_store 已强校验 cosine，这里只做展示
     return 0
 
 

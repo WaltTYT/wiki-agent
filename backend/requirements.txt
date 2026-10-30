@@ -17,6 +17,7 @@ langchain-classic>=1.0.8,<2
 
 # PDF 抽取（loader 选型见 .doc/plan.md §2.1）
 pypdf>=6.21,<7
+cryptography>=41   # 加密 PDF（AES）解析必需，否则 pypdf 抛 DependencyError
 
 # Web / 流式
 fastapi>=0.162,<1
@@ -25,6 +26,7 @@ sse-starlette>=3.6,<4
 pydantic-settings>=2.16,<3
 python-dotenv>=1.2,<2
 httpx>=0.28,<1
+python-multipart>=0.0.20,<1   # /api/ingest/upload 的表单上传（FastAPI 要求单独安装）
 
 # 测试
 pytest>=9.2,<10

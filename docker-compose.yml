@@ -1,0 +1,30 @@
+# 可选路径（plan §0 决策 8 / §4.2）：本机无 Docker，compose 未在本机验证，交给 CI 或具备 Docker 的环境。
+# 主路径仍是 scripts/start-dev.ps1 + conda。
+#   复制 backend/.env.example 为 backend/.env 并填写密钥后：
+#   docker compose up --build
+#   前端 http://localhost:8080  后端 http://localhost:8000
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      CHROMA_PATH: /data/chroma
+      PDF_DIR: /data/pdfs
+      WIKI_DIR: /data/wiki
+    volumes:
+      - ./data:/data
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
