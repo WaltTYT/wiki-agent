@@ -9,9 +9,23 @@ from fastapi.testclient import TestClient
 from app.api.chat import resolve_model
 from app.config import Settings
 from app.llm import make_chat_model
+import app.llm as llm_mod
 
 FLASH = "qwen3.8-flash"
 MAX = "qwen3.8-max"
+
+
+@pytest.fixture()
+def fake_llm_settings(monkeypatch: pytest.MonkeyPatch) -> Settings:
+    """不依赖 backend/.env：CI 里没有 .env，靠本机密钥会让用例在干净环境直接失败。"""
+    s = Settings(
+        llm_model=FLASH,
+        llm_models=f"{FLASH},{MAX}",
+        llm_api_key="sk-test",
+        llm_base_url="https://x.invalid/v1",
+    )
+    monkeypatch.setattr(llm_mod, "get_settings", lambda: s)
+    return s
 
 
 def test_model_choices_merges_default_and_list():
@@ -46,13 +60,13 @@ def test_resolve_model_rejects_unknown():
     assert FLASH in str(ei.value.detail), "报错要告诉前端可选哪些"
 
 
-def test_make_chat_model_uses_requested_model():
+def test_make_chat_model_uses_requested_model(fake_llm_settings):
     assert make_chat_model(model=MAX).model_name == MAX
     assert make_chat_model(model=FLASH).model_name == FLASH
-    assert make_chat_model().model_name  # 不传就用 .env 默认
+    assert make_chat_model().model_name == FLASH, "不传模型时用配置里的默认模型"
 
 
-def test_make_chat_model_disables_thinking_by_default():
+def test_make_chat_model_disables_thinking_by_default(fake_llm_settings):
     """qwen3.8 默认会思考，多花 token 也拖慢首字；这里必须显式关掉。"""
     m = make_chat_model(model=FLASH)
     assert m.extra_body == {"enable_thinking": False}
