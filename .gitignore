@@ -17,7 +17,8 @@ backend/.env
 
 # 向量库与生成物
 data/chroma/
-data/wiki/*.tmp
+# 真实沉淀记忆可能来自私有语料，整目录不提交；可公开示例放 data/wiki-example/
+data/wiki/
 backend/.chroma_check/
 *.log
 

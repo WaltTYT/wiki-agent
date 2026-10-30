@@ -417,7 +417,7 @@ START → Retrieve → Grade ──相关──→ Generate → END
 | 离线测试 | `pytest -q` → **60 passed**（原 48 + Wiki 12 项），含 wiki 优先跳过 grade、reflect 写入/不写入、兜底不写、去重合并、API 增删 |
 | 前端构建 | `npm run build` → 21 modules / 88.38 kB（gzip 34.05 kB） |
 | 真实 LLM 验收 | **2026-10-30 已通过**（qwen3.8-flash，语料 112 chunk）：<br>第1次问「差旅报销需要提供哪些材料？」→ `retrieve(from_wiki=false) → grade(true) → generate → reflect(worth=true) → write_wiki`，首 token 1.93s / 总 3.36s，落入 `data/wiki/21a4f29508.md`，sources 合并 `sample-handbook.md` + 3 条 PDF 页码；<br>第2次同一问题 → `retrieve(from_wiki=true) → generate`，sources 首条 `wiki/21a4f29508.md(0.705)`，首 token 0.44s / 总 0.51s，**提速 3.36s → 0.51s** |
-| 验收脚本 | 临时脚本跑完即删；测试记忆与向量也已清理，`data/wiki/` 初始为空（首次写入时自动建目录 + 索引） |
+| 验收脚本 | 临时脚本跑完即删；测试记忆与向量也已清理。真实记忆目录 `data/wiki/` **整目录 gitignore**（可能含私有语料），可公开的格式示例放 `data/wiki-example/`（README + 2 条样例 + index.md） |
 
 ---
 

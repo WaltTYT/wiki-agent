@@ -139,7 +139,8 @@ frontend/src/            # Vue 3 + Vite，零新增 Markdown/SSE 依赖
 data/
   pdfs/                  # 本地语料（整目录 gitignore）
   pdfs-example/          # 可公开的虚构示例
-  wiki/                  # 沉淀记忆（一篇一 md + index.md）
+  wiki/                  # 运行时沉淀的真实记忆（整目录 gitignore，别提交）
+  wiki-example/          # 可公开的 Wiki 条目格式示例
 scripts/                 # start-dev / ingest / test
 .doc/                    # plan.md、architecture.md、start.bat
 ```
